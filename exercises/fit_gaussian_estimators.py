@@ -73,6 +73,8 @@ def test_multivariate_gaussian():
     fig = go.Figure(data=go.Heatmap(x=f1, y=f3,z=log_like_mat, reversescale=True, xaxis='x', yaxis='y'))
     fig.update_layout(xaxis_title="${f1}$",
                       yaxis_title="${f3}$",title=HEAT_MAP_TITLE)
+
+    # to see change yaya
     fig.show()
 
 
