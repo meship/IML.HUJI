@@ -74,7 +74,6 @@ def test_multivariate_gaussian():
     fig.update_layout(xaxis_title="${f1}$",
                       yaxis_title="${f3}$",title=HEAT_MAP_TITLE)
 
-    # to see change yaya
     fig.show()
 
 
