@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 
 
+def get_canceled_days_before_checkout(canceled_date):
+    if pd.isnull(canceled_date):
+        return 0
+    return 1
 
 
 def load_data(filename: str):
@@ -23,16 +27,16 @@ def load_data(filename: str):
     """
     full_data = pd.read_csv(filename).drop_duplicates()
     features = full_data[[
-                          "hotel_star_rating",
-                          "charge_option",
-                          "no_of_room",
-                            "no_of_extra_bed",
-                          "original_selling_amount",
-                          "no_of_children",
-                            "request_nonesmoke",
-                            "request_latecheckin",
-                            "request_highfloor",
-    "request_largebed","request_twinbeds", "request_airport", "request_earlycheckin"]]
+        "hotel_star_rating",
+        "charge_option",
+        "no_of_room",
+        "no_of_extra_bed",
+        "original_selling_amount",
+        "no_of_children",
+        "request_nonesmoke",
+        "request_latecheckin",
+        "request_highfloor",
+        "request_largebed", "request_twinbeds", "request_airport", "request_earlycheckin"]]
 
     # features["abroad"] = np.where(full_data["hotel_country_code"] == full_data["origin_country_code"], 0, 1)
     features["request_nonesmoke"] = features["request_nonesmoke"].fillna(0)
@@ -54,8 +58,8 @@ def load_data(filename: str):
 
     grades_for_charge = {'Pay Now': 3, 'Pay Later': 2, 'Pay at Check-in': 1}
     features['charge_option'] = features['charge_option'].replace(grades_for_charge)
-    labels = full_data['cancellation_datetime'].between("2018-07-12", "2018-13-12").astype(int)
 
+    labels = full_data['cancellation_datetime'].apply(lambda t: get_canceled_days_before_checkout(t))
 
     return features, labels
 
@@ -85,9 +89,9 @@ if __name__ == '__main__':
     df, cancellation_labels = load_data("../datasets/agoda_cancellation_train.csv")
 
     train_X, train_y, test_X, test_y = split_train_test(df, cancellation_labels)
-
     # Fit model over data
     estimator = AgodaCancellationEstimator().fit(train_X.to_numpy(), train_y.to_numpy())
+    #estimator.predict(train_X)
 
     # Store model predictions over test set
-    evaluate_and_export(estimator, test_X.to_numpy(), "try.csv")
+    evaluate_and_export(estimator, train_X.to_numpy(), "try.csv")
