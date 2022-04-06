@@ -5,6 +5,7 @@ import numpy as np
 from numpy.linalg import pinv
 
 
+
 class LinearRegression(BaseEstimator):
     """
     Linear Regression Estimator
@@ -49,7 +50,10 @@ class LinearRegression(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.include_intercept_`
         """
-        raise NotImplementedError()
+        self.coefs_ = pinv(X).dot(y)
+        if self.include_intercept_:
+            self.coefs_ = np.insert(self.coefs_, 0, 1)
+
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -65,7 +69,9 @@ class LinearRegression(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        if self.include_intercept_:
+            X = np.apply_along_axis(lambda t: np.insert(t,0,1),1, X)
+        return X.dot(self.coefs_)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -84,4 +90,4 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        raise NotImplementedError()
+        return np.linalg.norm(self._predict(X)-y)**2 / y.shape[0]

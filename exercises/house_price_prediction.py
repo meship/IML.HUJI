@@ -7,6 +7,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
+from sklearn.linear_model import LinearRegression as LR
+
+import sys
+sys.path.append("../")
+from utils import *
+
+np.random.seed(17)
 pio.templates.default = "simple_white"
 
 
@@ -24,6 +31,7 @@ def load_data(filename: str):
     DataFrame or a Tuple[DataFrame, Series]
     """
     full_data = pd.read_csv(filename).drop_duplicates().dropna()
+    full_data = full_data.drop(full_data[full_data['price'] <= 0].index)
     features = full_data[[
         "bedrooms",
         "bathrooms",
@@ -32,12 +40,17 @@ def load_data(filename: str):
         "floors",
         "condition",
         "sqft_above",
-        "sqft_basement",]]
+        "sqft_basement",
+        "view",
+        "waterfront",
+        ]]
     features["age"] = full_data["yr_built"].apply(lambda t: 2022-t)
     features["renovated"] = np.where(full_data["yr_renovated"] == 0,0,1)
     features["grade"] = np.where(np.isnan(full_data["grade"]),0,full_data["grade"])
+    zip_codes = pd.get_dummies(full_data['zipcode'])
+    features = pd.concat([features, zip_codes], axis=1, join='inner')
 
-    prices = np.where(np.isnan(full_data["price"]),0,full_data["price"])
+    prices = pd.Series(np.where(np.isnan(full_data["price"]),0,full_data["price"]))
     return features, prices
 
 
@@ -62,7 +75,15 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     corr_array = X.apply(function, axis=0)
     corr_data = {'features': [x for x in corr_array._info_axis], 'corr': [x for x in corr_array]}
     corr_data_frame = pd.DataFrame(data=corr_data)
-    fig = px.bar(corr_data_frame, x='features', y='corr',range_y=[-1,1])
+
+    price_by_sqft_living = {'sqft_living': X['sqft_living'], 'Price': y}
+    price_by_sqft_living_df = pd.DataFrame(data=price_by_sqft_living)
+    fig = px.scatter(price_by_sqft_living_df, x="sqft_living", y="Price")
+    fig.show()
+
+    price_by_age = {'House_age': X['age'], 'Price': y}
+    price_by_age_df = pd.DataFrame(data=price_by_age)
+    fig = px.scatter(price_by_age_df, x="House_age", y="Price", range_x=[0,150])
     fig.show()
 
 
@@ -70,15 +91,14 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
-    data, labeles = load_data("../datasets/house_prices.csv")
+    data, labels = load_data("../datasets/house_prices.csv")
 
 
     # Question 2 - Feature evaluation with respect to response
-    feature_evaluation(data, labeles)
+    feature_evaluation(data, labels)
 
     # Question 3 - Split samples into training- and testing sets.
-    raise NotImplementedError()
-
+    train_X, train_y, test_X, test_y = split_train_test(data, labels)
     # Question 4 - Fit model over increasing percentages of the overall training data
     # For every percentage p in 10%, 11%, ..., 100%, repeat the following 10 times:
     #   1) Sample p% of the overall training data
@@ -86,4 +106,65 @@ if __name__ == '__main__':
     #   3) Test fitted model over test set
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
-    raise NotImplementedError()
+    l_r = LinearRegression()
+    P = np.vander(test_y/1000000, N=5)
+    average_loss = np.empty([91])
+    var = np.empty([91])
+    for i in range(10,101):
+        loss_10_semp = np.empty([10])
+        for j in range(10):
+            if i == 100:
+                train_Data, train_score, test_Data, test_Score = test_X, test_y, test_X, test_y
+            else:
+                train_Data, train_score, test_Data, test_Score = split_train_test(test_X, test_y, i/100.0)
+            l_r.fit(train_Data, train_score)
+            loss_10_semp[j] = l_r.loss(test_Data, test_Score)
+        average_loss[i - 10] = loss_10_semp.mean()
+        var[i-10] = loss_10_semp.var()
+
+    X = list(range(10,101))
+    y_upper = average_loss + 2 * np.apply_along_axis(np.sqrt, 0, var)
+    y_lower = average_loss - 2 * np.apply_along_axis(np.sqrt, 0, var)
+    # fig = go.Figure([
+    #     go.Scatter(
+    #         x=X,
+    #         y=average,
+    #         line=dict(color='rgb(0,100,80)'),
+    #         mode='lines'
+    #     )
+        # go.Scatter(
+        #     name="lower",
+        #     x=X,
+        #     y=y_lower,
+        #     fill='tonexty',
+        #     line=dict(color='rgba(0,100,80,0.2)'),
+        #     mode='lines'
+        # ),
+        # go.Scatter(
+        #     name="upper",
+        #     x=X,
+        #     y=y_upper,
+        #     fill='tonexty',
+        #     line=dict(color='rgba(0,100,80,0.2)'),
+        #     mode='lines'
+        # )
+    # ])
+    # fig.update_yaxes(title_text="log MSE", type='log')
+    # fig.show()
+
+    fig = go.Figure([
+        go.Scatter(name='Measurement', x=list(range(10, 100)), y=average_loss, mode='lines',
+                   line=dict(color='rgb(31, 119, 180)')),
+        go.Scatter(
+            x=list(range(10, 100)) + list(range(10, 100))[::-1], y=y_upper + y_lower[::-1], fill='toself',
+            fillcolor='rgba(0,100,80,0.2)',
+            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=False)])
+    fig.update_xaxes(title_text="p% from training")
+    fig.update_yaxes(title_text="Linear regression mean score over 10 iterations")
+    fig.update_layout(title="mean loss of a linear regression model as a function of p% fit from training data,"
+                            " with a confidence interval of mean(loss)±2 ∗"
+                            "std(loss)")
+    fig.show()
+
+
+
