@@ -8,8 +8,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
 from sklearn.linear_model import LinearRegression as LR
+from sklearn.metrics import mean_squared_error
 
 import sys
+
 sys.path.append("../")
 from utils import *
 
@@ -43,15 +45,11 @@ def load_data(filename: str):
         "sqft_basement",
         "view",
         "waterfront",
-        ]]
-    features["age"] = full_data["yr_built"].apply(lambda t: 2022-t)
-    features["renovated"] = np.where(full_data["yr_renovated"] == 0,0,1)
-    features["grade"] = np.where(np.isnan(full_data["grade"]),0,full_data["grade"])
-    zip_codes = pd.get_dummies(full_data['zipcode'])
-    features = pd.concat([features, zip_codes], axis=1, join='inner')
-
-    prices = pd.Series(np.where(np.isnan(full_data["price"]),0,full_data["price"]))
-    return features, prices
+        "grade"
+    ]]
+    features["age"] = full_data["yr_built"].apply(lambda t: 2022 - t)
+    features["renovated"] = np.where(full_data["yr_renovated"] == 0, 0, 1)
+    return features, full_data['price']
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -71,28 +69,27 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    function = lambda t: np.cov(t,y)[0][1] / np.sqrt(np.var(t)*np.var(y))
+    function = lambda t: np.cov(t, y)[0][1] / np.sqrt(np.var(t) * np.var(y))
     corr_array = X.apply(function, axis=0)
-    corr_data = {'features': [x for x in corr_array._info_axis], 'corr': [x for x in corr_array]}
-    corr_data_frame = pd.DataFrame(data=corr_data)
-
     price_by_sqft_living = {'sqft_living': X['sqft_living'], 'Price': y}
     price_by_sqft_living_df = pd.DataFrame(data=price_by_sqft_living)
-    fig = px.scatter(price_by_sqft_living_df, x="sqft_living", y="Price")
-    fig.show()
+    fig = px.scatter(price_by_sqft_living_df, x="sqft_living", y="Price",
+                     title='Price as a Function of sqft_living With '
+                           'Pearson Corr of: %0.4f' % (corr_array['sqft_living']))
+    pio.write_html(fig, output_path + 'corr_living.html')
 
     price_by_age = {'House_age': X['age'], 'Price': y}
     price_by_age_df = pd.DataFrame(data=price_by_age)
-    fig = px.scatter(price_by_age_df, x="House_age", y="Price", range_x=[0,150])
-    fig.show()
-
+    fig = px.scatter(price_by_age_df, x="House_age", y="Price", range_x=[0, 150],
+                     title='Price as a Function of the \'House Age\' With '
+                           'Pearson Corr of: %0.4f' % (corr_array['age']))
+    pio.write_html(fig, output_path + 'corr_age.html')
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
     data, labels = load_data("../datasets/house_prices.csv")
-
 
     # Question 2 - Feature evaluation with respect to response
     feature_evaluation(data, labels)
@@ -107,64 +104,32 @@ if __name__ == '__main__':
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
     l_r = LinearRegression()
-    P = np.vander(test_y/1000000, N=5)
     average_loss = np.empty([91])
+    y_upper = []
+    y_lower = []
     var = np.empty([91])
-    for i in range(10,101):
+    for i in range(10, 101):
         loss_10_semp = np.empty([10])
         for j in range(10):
-            if i == 100:
-                train_Data, train_score, test_Data, test_Score = test_X, test_y, test_X, test_y
-            else:
-                train_Data, train_score, test_Data, test_Score = split_train_test(test_X, test_y, i/100.0)
+            train_Data, train_score, test_Data, test_Score = split_train_test(test_X, test_y, i / 100.0)
             l_r.fit(train_Data, train_score)
-            loss_10_semp[j] = l_r.loss(test_Data, test_Score)
+            loss_10_semp[j] = l_r.loss(test_X, test_y)
         average_loss[i - 10] = loss_10_semp.mean()
-        var[i-10] = loss_10_semp.var()
+        var[i - 10] = loss_10_semp.std()
+        y_upper.append(loss_10_semp.mean() + 2 * loss_10_semp.std())
+        y_lower.append(loss_10_semp.mean() - 2 * loss_10_semp.std())
 
-    X = list(range(10,101))
-    y_upper = average_loss + 2 * np.apply_along_axis(np.sqrt, 0, var)
-    y_lower = average_loss - 2 * np.apply_along_axis(np.sqrt, 0, var)
-    # fig = go.Figure([
-    #     go.Scatter(
-    #         x=X,
-    #         y=average,
-    #         line=dict(color='rgb(0,100,80)'),
-    #         mode='lines'
-    #     )
-        # go.Scatter(
-        #     name="lower",
-        #     x=X,
-        #     y=y_lower,
-        #     fill='tonexty',
-        #     line=dict(color='rgba(0,100,80,0.2)'),
-        #     mode='lines'
-        # ),
-        # go.Scatter(
-        #     name="upper",
-        #     x=X,
-        #     y=y_upper,
-        #     fill='tonexty',
-        #     line=dict(color='rgba(0,100,80,0.2)'),
-        #     mode='lines'
-        # )
-    # ])
-    # fig.update_yaxes(title_text="log MSE", type='log')
-    # fig.show()
-
+    X = list(range(10, 101))
     fig = go.Figure([
         go.Scatter(name='Measurement', x=list(range(10, 100)), y=average_loss, mode='lines',
-                   line=dict(color='rgb(31, 119, 180)')),
+                   line=dict(color='rgb(0, 255, 255)')),
         go.Scatter(
             x=list(range(10, 100)) + list(range(10, 100))[::-1], y=y_upper + y_lower[::-1], fill='toself',
-            fillcolor='rgba(0,100,80,0.2)',
-            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=False)])
-    fig.update_xaxes(title_text="p% from training")
-    fig.update_yaxes(title_text="Linear regression mean score over 10 iterations")
-    fig.update_layout(title="mean loss of a linear regression model as a function of p% fit from training data,"
-                            " with a confidence interval of mean(loss)±2 ∗"
-                            "std(loss)")
+            fillcolor='rgba(0,153,153,0.2)',
+            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=False)
+    ])
+    fig.update_xaxes(title_text="Percentage")
+    fig.update_yaxes(title_text="Mean Loss")
+    fig.update_layout(title="The Mean Loss as a function of p% with a confidence interval of "
+                            "mean(loss)±2 ∗std(loss)")
     fig.show()
-
-
-

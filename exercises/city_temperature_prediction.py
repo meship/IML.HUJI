@@ -38,20 +38,60 @@ if __name__ == '__main__':
     data, temp = load_data("../datasets/City_Temperature.csv")
 
     # Question 2 - Exploring data for specific country
-    israel_data = data[data["Country"] == "Israel"]
-    israel_temp = temp[data[data["Country"] == "Israel"].index]
-    fig = px.scatter(israel_data, x="DayOfYear", y=israel_temp)
+    data_with_temp = features = pd.concat([data, temp], axis=1, join='inner')
+    israel_data = data_with_temp[data_with_temp["Country"] == "Israel"]
+    fig = px.scatter(israel_data, x="DayOfYear", y="Temp", color=israel_data['Year'].astype(str),
+                     color_discrete_sequence=px.colors.qualitative.Set3,
+                     title="Temperature as a Function of Day of Year in Israel")
+    fig.update_traces(marker_size=10)
     fig.show()
-    func = lambda t: np.std(israel_temp[data[data["Month"] == t].index])
-    israel_data_m = israel_data.groupby('Month')
-    i = 9
+    months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    Month = pd.DataFrame({'Month': months})
+    israel_data_m = israel_data.groupby('Month').agg({'Temp': 'std'})
+    israel_data_m = pd.concat([israel_data_m, Month], axis=1, join='inner')
+    fig = px.bar(israel_data_m, x='Month', y='Temp', color_discrete_sequence=px.colors.qualitative.Pastel,
+                 title="Temperature STD over the Months in Israel")
+    fig.show()
+
 
 
     # Question 3 - Exploring differences between countries
-    #raise NotImplementedError()
-
+    temp_by_mean_std = data_with_temp.groupby(['Month', 'Country']).agg({'Temp': ['mean', 'std']})
+    temp_by_mean_std.columns = ['Mean Temp', 'STD Temp']
+    temp_by_mean_std = temp_by_mean_std.reset_index()
+    fig = px.line(temp_by_mean_std, x='Month', y='Mean Temp', error_y='STD Temp', color='Country',
+                  color_discrete_sequence=px.colors.qualitative.Vivid,
+                  title="The Mean Temperature With STD Error, in Each Month")
+    fig.show()
     # Question 4 - Fitting model for different values of `k`
-    #raise NotImplementedError()
+    relevant_data = israel_data[['DayOfYear']]
+    train_X, train_y, test_X, test_y = split_train_test(relevant_data, israel_data['Temp'])
+    poly_lost = []
+    for i in range(1,11):
+        p_r = PolynomialFitting(i)
+        p_r.fit(train_X['DayOfYear'], train_y)
+        poly_lost.append(p_r.loss(test_X['DayOfYear'], test_y))
+    loss_as_k = pd.DataFrame({'power': list(range(1,11)), 'loss': poly_lost})
+    print("the losses are:")
+    print(loss_as_k)
+    fig = px.bar(loss_as_k, x='power', y='loss',
+                 title='The Loss of the Polynomial Fitting Model According  '
+                       'to the Polynomial Rank')
+    fig.show()
+
 
     # Question 5 - Evaluating fitted model on different countries
-    #raise NotImplementedError()
+    p_r = PolynomialFitting(5)
+    p_r.fit(relevant_data['DayOfYear'], israel_data['Temp'])
+    loss = []
+    jordan_data = data_with_temp[data_with_temp["Country"] == "Jordan"]
+    loss.append(p_r.loss(jordan_data['DayOfYear'], jordan_data['Temp']))
+    SA_data = data_with_temp[data_with_temp["Country"] == "South Africa"]
+    loss.append(p_r.loss(SA_data['DayOfYear'], SA_data['Temp']))
+    NL_data = data_with_temp[data_with_temp["Country"] == "The Netherlands"]
+    loss.append(p_r.loss(NL_data['DayOfYear'], NL_data['Temp']))
+    fig = px.bar(x=['Jordan',"South Africa","The Netherlands"], y=loss,
+                 color_discrete_sequence=px.colors.qualitative.Set2, labels={'x': 'Country', 'y':'MSE'},
+                 title='The Model’s Error Over Each of the Other Countries According to '
+                       'the Fitted Model on Israel’s Data')
+    fig.show()

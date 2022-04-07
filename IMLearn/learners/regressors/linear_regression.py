@@ -3,6 +3,7 @@ from typing import NoReturn
 from ...base import BaseEstimator
 import numpy as np
 from numpy.linalg import pinv
+from IMLearn.metrics.loss_functions import mean_square_error
 
 
 
@@ -90,4 +91,4 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        return np.linalg.norm(self._predict(X)-y)**2 / y.shape[0]
+        return mean_square_error(y, self.predict(X))
