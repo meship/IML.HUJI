@@ -71,6 +71,7 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     """
     function = lambda t: np.cov(t, y)[0][1] / np.sqrt(np.var(t) * np.var(y))
     corr_array = X.apply(function, axis=0)
+
     price_by_sqft_living = {'sqft_living': X['sqft_living'], 'Price': y}
     price_by_sqft_living_df = pd.DataFrame(data=price_by_sqft_living)
     fig = px.scatter(price_by_sqft_living_df, x="sqft_living", y="Price",
@@ -96,6 +97,7 @@ if __name__ == '__main__':
 
     # Question 3 - Split samples into training- and testing sets.
     train_X, train_y, test_X, test_y = split_train_test(data, labels)
+
     # Question 4 - Fit model over increasing percentages of the overall training data
     # For every percentage p in 10%, 11%, ..., 100%, repeat the following 10 times:
     #   1) Sample p% of the overall training data
