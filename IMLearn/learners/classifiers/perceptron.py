@@ -7,7 +7,8 @@ import numpy as np
 
 
 def default_callback(fit: Perceptron, x: np.ndarray, y: int):
-    pass
+    fit.loss_array.append(fit.loss())
+
 
 
 class Perceptron(BaseEstimator):
@@ -73,6 +74,7 @@ class Perceptron(BaseEstimator):
         self.max_iter_ = max_iter
         self.callback_ = callback
         self.coefs_ = None
+        self.loss_array = []
 
     def _fit(self, X: np.ndarray, y: np.ndarray) -> NoReturn:
         """
@@ -91,26 +93,28 @@ class Perceptron(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.fit_intercept_`
         """
-        if self.include_intercept_:
-            self.coefs_ = np.zeros(y.shape[0]+1)
-            X = np.apply_along_axis(lambda t: np.insert(t, 0, 1), 1, X)
-            np.insert(y,0,1)
 
-        else:
-            self.coefs_ = np.zeros(y.shape[0])
+        def callback(fit: Perceptron):
+            fit.loss_array.append(fit._loss(X,y))
+
+        if self.include_intercept_:
+            X = np.apply_along_axis(lambda t: np.insert(t, 0, 1), 1, X)
+
+        self.coefs_ = np.zeros(X.shape[1])
         ind = 0
         flag = False
         while ind < self.max_iter_ and not flag:
             for i in range(y.shape[0]):
-                if y[i] * np.dot(self.coefs_, X[i]) <= 0:
+                if y[i] * np.dot(self.coefs_.T, X[i]) <= 0:
                     self.coefs_ = self.coefs_ + y[i] * X[i]
                     break
             else:
                 flag = True
+
+            self.include_intercept_ = False
+            callback(self)
+            self.include_intercept_ = True
             ind += 1
-
-
-
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -128,8 +132,8 @@ class Perceptron(BaseEstimator):
         """
         if self.include_intercept_:
             X = np.apply_along_axis(lambda t: np.insert(t, 0, 1), 1, X)
-        sign = lambda t: np.sign(t.T * self.coefs_)
-        return np.apply_along_axis(sign, 0, X)
+        sign = lambda t: np.sign(np.dot(self.coefs_.T, t))
+        return np.apply_along_axis(sign, 1, X)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -148,4 +152,4 @@ class Perceptron(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        return misclassification_error(self.predict(X), y)
+        return misclassification_error(y, self._predict(X))
