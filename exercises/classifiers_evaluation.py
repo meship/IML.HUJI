@@ -95,8 +95,7 @@ def compare_gaussian_classifiers():
         # Plot a figure with two suplots, showing the Gaussian Naive Bayes predictions on the left and LDA predictions
         # on the right. Plot title should specify dataset used and subplot titles should specify algorithm and accuracy
         model_names = ["Gaussian Naive Bayes classifier with accuracy %.3f" % gbn_acc,
-                       "LDA classifierwith accuracy %.3f" %lda_acc]
-        title = ""
+                       "LDA classifierwith accuracy %.3f" % lda_acc]
         models = [gnb_pred, lda_pred]
         color = np.array(px.colors.qualitative.Safe)
         symbols = class_symbols
