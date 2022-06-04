@@ -27,7 +27,13 @@ def select_polynomial_degree(n_samples: int = 100, noise: float = 5):
     """
     # Question 1 - Generate dataset for model f(x)=(x+3)(x+2)(x+1)(x-1)(x-2) + eps for eps Gaussian noise
     # and split into training- and testing portions
-    raise NotImplementedError()
+    set_for_x = np.linspace(-1.2,2,num=n_samples)
+    f = np.vectorize(lambda x: (x+3)*(x+2)*(x+1)*(x-1)*(x-2))
+    noise_less_data = f(set_for_x)
+    noises = np.random.normal(0, noise, 100) #todo 5 is var or std?
+    data_with_noise = noise_less_data + noises
+
+
 
     # Question 2 - Perform CV for polynomial fitting with degrees 0,1,...,10
     raise NotImplementedError()
@@ -61,4 +67,4 @@ def select_regularization_parameter(n_samples: int = 50, n_evaluations: int = 50
 
 if __name__ == '__main__':
     np.random.seed(0)
-    raise NotImplementedError()
+    select_polynomial_degree()

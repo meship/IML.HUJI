@@ -113,7 +113,6 @@ def compare_gaussian_classifiers():
     for f in ["gaussian1.npy", "gaussian2.npy"]:
         # Load dataset
         X, y = load_dataset("../datasets/" + f)
-
         # Fit models and predict over training set
         lda = LDA().fit(X, y)
         gnb = GaussianNaiveBayes().fit(X, y)
@@ -153,13 +152,13 @@ def compare_gaussian_classifiers():
         fig.show()
 
         # Add traces for data-points setting symbols and colors
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
         # Add `X` dots specifying fitted Gaussians' means
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
         # Add ellipses depicting the covariances of the fitted Gaussians
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
 
 if __name__ == '__main__':
